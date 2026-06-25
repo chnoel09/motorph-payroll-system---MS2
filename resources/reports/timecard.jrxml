@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="timecard" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="22222222-2222-2222-2222-222222222222">
+	<parameter name="EMPLOYEE_ID" class="java.lang.Integer"/>
+	<parameter name="START_DATE" class="java.sql.Date"/>
+	<parameter name="END_DATE" class="java.sql.Date"/>
+	<parameter name="PERIOD_LABEL" class="java.lang.String"/>
+	<parameter name="LOGO_URL" class="java.net.URL"/>
+	<queryString>
+		<![CDATA[SELECT
+                e.employee_id,
+                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+                e.position,
+                d.department_name,
+                ar.attendance_date AS schedule_date,
+                COALESCE(es.rest_day, 0) AS rest_day,
+                es.status AS schedule_status,
+                sh.shift_name,
+                DATE_FORMAT(sh.start_time, '%H:%i') AS scheduled_start,
+                DATE_FORMAT(sh.end_time, '%H:%i') AS scheduled_end,
+                sh.grace_minutes,
+                h.holiday_name,
+                h.holiday_type,
+                ar.time_in,
+                ar.time_out,
+                CASE
+                    WHEN ar.time_in IS NULL OR ar.time_out IS NULL
+                         OR ar.time_in = '' OR ar.time_out = ''
+                    THEN 0
+                    ELSE ROUND(TIMESTAMPDIFF(
+                        MINUTE,
+                        STR_TO_DATE(ar.time_in, '%H:%i'),
+                        STR_TO_DATE(ar.time_out, '%H:%i')
+                    ) / 60, 2)
+                END AS hours_worked,
+                CASE
+                    WHEN h.holiday_id IS NOT NULL THEN CONCAT('Holiday: ', h.holiday_name)
+                    WHEN es.schedule_id IS NULL THEN 'No Assigned Schedule'
+                    WHEN es.rest_day = 1 THEN 'Rest Day Attendance'
+                    WHEN ar.time_in IS NULL OR ar.time_in = '' THEN 'Missing Time In'
+                    WHEN ar.time_out IS NULL OR ar.time_out = '' THEN 'Missing Time Out'
+                    WHEN sh.shift_id IS NOT NULL
+                         AND STR_TO_DATE(ar.time_in, '%H:%i') >
+                             ADDTIME(sh.start_time, SEC_TO_TIME(COALESCE(sh.grace_minutes, 0) * 60))
+                    THEN 'Late'
+                    WHEN sh.shift_id IS NOT NULL
+                         AND STR_TO_DATE(ar.time_out, '%H:%i') < sh.end_time
+                    THEN 'Undertime'
+                    ELSE 'Complete'
+                END AS attendance_status
+            FROM employees e
+            JOIN attendance_records ar
+              ON ar.employee_id = e.employee_id
+            LEFT JOIN departments d
+              ON d.department_id = e.department_id
+            LEFT JOIN employee_schedules es
+              ON es.employee_id = ar.employee_id
+             AND es.schedule_date = ar.attendance_date
+            LEFT JOIN employee_shifts sh
+              ON sh.shift_id = es.shift_id
+            LEFT JOIN holidays h
+              ON h.holiday_id = es.holiday_id
+              OR h.holiday_date = ar.attendance_date
+            WHERE e.employee_id = $P{EMPLOYEE_ID}
+              AND ar.attendance_date BETWEEN $P{START_DATE} AND $P{END_DATE}
+            ORDER BY ar.attendance_date]]>
+	</queryString>
+	<field name="employee_id" class="java.lang.Integer"/>
+	<field name="employee_name" class="java.lang.String"/>
+	<field name="position" class="java.lang.String"/>
+	<field name="department_name" class="java.lang.String"/>
+	<field name="schedule_date" class="java.sql.Date"/>
+	<field name="rest_day" class="java.lang.Boolean"/>
+	<field name="schedule_status" class="java.lang.String"/>
+	<field name="shift_name" class="java.lang.String"/>
+	<field name="scheduled_start" class="java.lang.String"/>
+	<field name="scheduled_end" class="java.lang.String"/>
+	<field name="grace_minutes" class="java.lang.Integer"/>
+	<field name="holiday_name" class="java.lang.String"/>
+	<field name="holiday_type" class="java.lang.String"/>
+	<field name="time_in" class="java.lang.String"/>
+	<field name="time_out" class="java.lang.String"/>
+	<field name="hours_worked" class="java.math.BigDecimal"/>
+	<field name="attendance_status" class="java.lang.String"/>
+	<variable name="TOTAL_HOURS" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{hours_worked}]]></variableExpression>
+	</variable>
+	<title>
+		<band height="150">
+			<image onErrorType="Blank">
+				<reportElement x="35" y="0" width="170" height="124" uuid="f7d17451-4ba6-47da-966e-4100e3b5c420"/>
+				<imageExpression><![CDATA[$P{LOGO_URL}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="224" y="6" width="250" height="35" forecolor="#1E376D" uuid="9b836587-6457-4057-9924-f1c9dfd42a8a"/>
+				<textElement>
+					<font fontName="SansSerif" size="28" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[MotorPH]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="225" y="41" width="320" height="13" forecolor="#1E376D" uuid="c0a339f8-5a96-43e3-a952-0a27b2f53e47"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[7 Jupiter Avenue cor. F. Sandoval Jr., Bagong Nayon, Quezon City]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="225" y="56" width="320" height="13" forecolor="#1E376D" uuid="3d998391-6b2a-44c7-a96a-1e92aca06872"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Phone: (028) 911-5071 / (028) 911-5072 / (028) 911-5073]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="225" y="71" width="320" height="13" forecolor="#1E376D" uuid="aa65a5f2-5bf6-42a1-818c-9b2f5396fefa"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Email: corporate@motorph.com]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="100" width="555" height="24" forecolor="#1E376D" uuid="75687561-3900-408c-98dd-8700a03dac4b"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="17" isBold="true" isUnderline="true"/>
+				</textElement>
+				<text><![CDATA[EMPLOYEE TIMECARD]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="135" width="555" height="1" forecolor="#1E376D" uuid="ff50a7cd-b22b-44b3-8f4c-cef8d25fef2d"/>
+				<graphicElement>
+					<pen lineWidth="1.5"/>
+				</graphicElement>
+			</line>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="76">
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="0" width="115" height="22" backcolor="#2F3F52" uuid="d4f4af5f-b3e4-4f66-bf30-d1f92cbf88d5"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="6" y="6" width="100" height="10" forecolor="#FFFFFF" uuid="36f5a481-0250-4fa0-8131-a5f7bc24ff6e"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EMPLOYEE ID]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="120" y="0" width="155" height="22" uuid="09ea2b03-e6d5-4c9b-8d5e-66fb869b0789"/>
+				<textElement verticalAlignment="Middle">
+					<font size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{employee_id}]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement mode="Opaque" x="285" y="0" width="115" height="22" backcolor="#2F3F52" uuid="d485806d-8da2-4629-9179-6194a2f0d827"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="291" y="6" width="100" height="10" forecolor="#FFFFFF" uuid="dcb8bbac-138c-4df4-a3cd-674b87adbb1d"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PERIOD]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="405" y="0" width="150" height="22" uuid="cd161a5b-db71-461f-a979-dae9a0c58cb4"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{PERIOD_LABEL}]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="22" width="115" height="28" backcolor="#2F3F52" uuid="9c906446-d594-4a58-a058-fffc0fb07c19"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="6" y="31" width="100" height="10" forecolor="#FFFFFF" uuid="cd5ee40f-4c5f-4332-ae7c-98c648549c41"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EMPLOYEE NAME]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="120" y="22" width="155" height="28" uuid="5bb57dc7-5744-4c30-9a93-dd19ad2d6047"/>
+				<textElement verticalAlignment="Middle">
+					<font size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{employee_name}]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement mode="Opaque" x="285" y="22" width="115" height="28" backcolor="#2F3F52" uuid="54661cf6-23c3-466d-966b-6a98d9fbbd37"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="291" y="31" width="100" height="10" forecolor="#FFFFFF" uuid="30d1f20c-ce3e-4f23-8148-05cc2cf9c1aa"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[POSITION / DEPT]]></text>
+			</staticText>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="405" y="22" width="150" height="28" uuid="50eac2e6-00f9-4ac7-b4f3-072f990324a3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($F{position} == null ? "-" : $F{position}) + " / " + ($F{department_name} == null ? "-" : $F{department_name})]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="56" width="555" height="20" backcolor="#2F3F52" uuid="3f78d9d6-d2de-4578-b8a3-c4ee46226629"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="4" y="62" width="55" height="9" forecolor="#FFFFFF" uuid="6848f2cd-3278-499f-8230-0059a234450a"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DATE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="62" y="62" width="86" height="9" forecolor="#FFFFFF" uuid="10a3e297-fdbf-4f53-a870-b6bbd6d5d028"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SHIFT]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="151" y="62" width="62" height="9" forecolor="#FFFFFF" uuid="938200dc-7718-4631-836e-3185777ee338"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SCHED START]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="216" y="62" width="62" height="9" forecolor="#FFFFFF" uuid="e1d010d4-3683-4c9c-a715-8f7ca9d427cf"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SCHED END]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="281" y="62" width="55" height="9" forecolor="#FFFFFF" uuid="89f855fc-0a54-42b1-aeee-06da5425e95a"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TIME IN]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="339" y="62" width="55" height="9" forecolor="#FFFFFF" uuid="ce363fe5-4a81-4678-8a2d-f7e0ee56f03c"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TIME OUT]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="397" y="62" width="45" height="9" forecolor="#FFFFFF" uuid="5fcc3e11-fd38-44ec-9d1b-9c7d07036672"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[HOURS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="445" y="62" width="106" height="9" forecolor="#FFFFFF" uuid="c42ca3df-782c-4456-889d-64e9f06ea30d"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[STATUS]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="20">
+			<textField pattern="yyyy-MM-dd">
+				<reportElement x="4" y="3" width="55" height="12" uuid="b6202f75-13e2-4312-8046-f22c56bb2f5c"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{schedule_date}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="62" y="3" width="86" height="12" uuid="040d2d3e-aa47-4adf-a148-4cfd686ef379"/>
+				<textElement>
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{holiday_name} != null ? "HOL - " + $F{holiday_name} : ($F{rest_day} ? "Rest Day" : ($F{shift_name} == null ? "No Assigned Schedule" : $F{shift_name}))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="151" y="3" width="62" height="12" uuid="8c474f47-d404-4585-b98f-f24e11a4c77f"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{scheduled_start} == null ? "-" : $F{scheduled_start}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="216" y="3" width="62" height="12" uuid="cdded049-a677-4f09-8a11-7439fb608b56"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{scheduled_end} == null ? "-" : $F{scheduled_end}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="281" y="3" width="55" height="12" uuid="8f918e08-1428-4880-8527-10d3b3995482"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{time_in} == null || $F{time_in}.isBlank() ? "-" : $F{time_in}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="339" y="3" width="55" height="12" uuid="e236a423-759f-4557-b1b2-14c62f41ea49"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{time_out} == null || $F{time_out}.isBlank() ? "-" : $F{time_out}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="397" y="3" width="45" height="12" uuid="6d024458-82a4-435a-a92d-fe4ed5b4d16a"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{hours_worked}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="445" y="3" width="106" height="12" uuid="49ddacaf-3ead-4f66-99e1-c56b9c324a02"/>
+				<textElement>
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{attendance_status}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="19" width="555" height="1" forecolor="#E5E7EB" uuid="78271cf3-cff7-4432-9030-7964eb376730"/>
+			</line>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="18">
+			<textField>
+				<reportElement x="455" y="2" width="100" height="12" uuid="bb3f7f33-a7d0-4f8e-ac9a-27c736a40e9c"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="48">
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="8" width="555" height="24" backcolor="#F2F2F2" uuid="fb894587-0b5e-4060-8917-a87052862647"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="10" y="15" width="160" height="10" uuid="346ac3a8-943f-4838-af39-fcc278bc40aa"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL HOURS WORKED]]></text>
+			</staticText>
+			<textField pattern="#,##0.00">
+				<reportElement x="397" y="15" width="45" height="10" uuid="62168b9e-19a8-4298-9190-530390f537f7"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_HOURS}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="10" y="36" width="535" height="10" forecolor="#6B7280" uuid="d5aa20fe-8c5c-41e4-abcb-04c68f4b3bdf"/>
+				<textElement textAlignment="Center">
+					<font size="7" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[This timecard is an operational attendance report. Payroll calculations remain governed by payroll processing records.]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

@@ -1,0 +1,573 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="payroll_summary" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="33333333-3333-3333-3333-333333333333">
+	<parameter name="CUTOFF_PERIOD" class="java.lang.String"/>
+	<parameter name="PERIOD_START" class="java.sql.Date"/>
+	<parameter name="PERIOD_END" class="java.sql.Date"/>
+	<parameter name="LOGO_URL" class="java.net.URL"/>
+	<queryString>
+		<![CDATA[SELECT
+                ph.employee_id,
+                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+                e.position,
+                e.status AS employee_status,
+                ph.cutoff_period,
+                COALESCE(pp.period_start, ph.period_start) AS period_start,
+                COALESCE(pp.period_end, ph.period_end) AS period_end,
+                pp.period_id,
+                COALESCE(pp.status, 'Payroll Finalized') AS payroll_period_status,
+                pp.finalized_at,
+                pr.run_id,
+                CASE
+                    WHEN pr.status = 'READY_ONLY_PROCESSED' THEN 'Ready Employees Processed'
+                    WHEN pr.status = 'PROCESSED' THEN 'Payroll Finalized'
+                    WHEN pr.status IS NULL THEN 'Payroll History Snapshot'
+                    ELSE pr.status
+                END AS payroll_run_status,
+                CASE
+                    WHEN pr.status = 'READY_ONLY_PROCESSED' THEN 'Controlled Ready-Only Payroll Run'
+                    WHEN pr.status = 'PROCESSED' THEN 'Full Payroll Finalization'
+                    WHEN pr.status IS NULL THEN 'Payroll History Snapshot'
+                    ELSE pr.status
+                END AS payroll_run_type,
+                CASE
+                    WHEN pr.status = 'READY_ONLY_PROCESSED'
+                        THEN 'This controlled run includes only employees confirmed as Payroll Ready. Unresolved employees remain outside this payroll history snapshot.'
+                    WHEN pr.status = 'PROCESSED'
+                        THEN 'This report summarizes the finalized full-period payroll run.'
+                    ELSE 'This report summarizes payroll history rows available for the selected cutoff and date range.'
+                END AS run_scope_note,
+                pr.processed_at,
+                u.username AS processed_by_username,
+                CONCAT(processor.first_name, ' ', processor.last_name) AS processed_by_name,
+                ph.hours_worked,
+                ph.basic_component,
+                ph.allowance_component,
+                ph.gross,
+                ph.sss,
+                ph.philhealth,
+                ph.pagibig,
+                ph.tax,
+                ph.total_deductions,
+                ph.net
+            FROM payroll_history ph
+            JOIN employees e
+              ON e.employee_id = ph.employee_id
+            LEFT JOIN payroll_periods pp
+              ON pp.cutoff_period = ph.cutoff_period
+             AND pp.period_start = ph.period_start
+             AND pp.period_end = ph.period_end
+            LEFT JOIN (
+                SELECT r.*
+                FROM payroll_runs r
+                JOIN (
+                    SELECT period_id, MAX(processed_at) AS latest_processed_at
+                    FROM payroll_runs
+                    GROUP BY period_id
+                ) latest
+                  ON latest.period_id = r.period_id
+                 AND latest.latest_processed_at = r.processed_at
+            ) pr
+              ON pr.period_id = pp.period_id
+            LEFT JOIN users u
+              ON u.user_id = pr.processed_by_user_id
+            LEFT JOIN employees processor
+              ON processor.employee_id = u.employee_id
+            WHERE ph.cutoff_period = $P{CUTOFF_PERIOD}
+              AND ph.period_start = $P{PERIOD_START}
+              AND ph.period_end = $P{PERIOD_END}
+            ORDER BY e.last_name, e.first_name, ph.employee_id]]>
+	</queryString>
+	<field name="employee_id" class="java.lang.Integer"/>
+	<field name="employee_name" class="java.lang.String"/>
+	<field name="position" class="java.lang.String"/>
+	<field name="employee_status" class="java.lang.String"/>
+	<field name="cutoff_period" class="java.lang.String"/>
+	<field name="period_start" class="java.sql.Date"/>
+	<field name="period_end" class="java.sql.Date"/>
+	<field name="period_id" class="java.lang.Integer"/>
+	<field name="payroll_period_status" class="java.lang.String"/>
+	<field name="finalized_at" class="java.sql.Timestamp"/>
+	<field name="run_id" class="java.lang.Integer"/>
+	<field name="payroll_run_status" class="java.lang.String"/>
+	<field name="payroll_run_type" class="java.lang.String"/>
+	<field name="run_scope_note" class="java.lang.String"/>
+	<field name="processed_at" class="java.sql.Timestamp"/>
+	<field name="processed_by_username" class="java.lang.String"/>
+	<field name="processed_by_name" class="java.lang.String"/>
+	<field name="hours_worked" class="java.math.BigDecimal"/>
+	<field name="basic_component" class="java.math.BigDecimal"/>
+	<field name="allowance_component" class="java.math.BigDecimal"/>
+	<field name="gross" class="java.math.BigDecimal"/>
+	<field name="sss" class="java.math.BigDecimal"/>
+	<field name="philhealth" class="java.math.BigDecimal"/>
+	<field name="pagibig" class="java.math.BigDecimal"/>
+	<field name="tax" class="java.math.BigDecimal"/>
+	<field name="total_deductions" class="java.math.BigDecimal"/>
+	<field name="net" class="java.math.BigDecimal"/>
+	<variable name="EMPLOYEE_COUNT" class="java.lang.Integer" calculation="Count">
+		<variableExpression><![CDATA[$F{employee_id}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_GROSS" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{gross} == null ? java.math.BigDecimal.ZERO : $F{gross}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_DEDUCTIONS" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_deductions} == null ? java.math.BigDecimal.ZERO : $F{total_deductions}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_NET" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{net} == null ? java.math.BigDecimal.ZERO : $F{net}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_SSS" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{sss} == null ? java.math.BigDecimal.ZERO : $F{sss}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_PHILHEALTH" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{philhealth} == null ? java.math.BigDecimal.ZERO : $F{philhealth}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_PAGIBIG" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{pagibig} == null ? java.math.BigDecimal.ZERO : $F{pagibig}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_TAX" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{tax} == null ? java.math.BigDecimal.ZERO : $F{tax}]]></variableExpression>
+	</variable>
+	<title>
+		<band height="128">
+			<image onErrorType="Blank">
+				<reportElement x="20" y="0" width="145" height="92" uuid="38b3fd9e-33fd-4010-a9fd-b5ef201df51b"/>
+				<imageExpression><![CDATA[$P{LOGO_URL}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="180" y="6" width="300" height="30" forecolor="#1E376D" uuid="bc97db45-587c-4f86-b0c1-db290fc32fd4"/>
+				<textElement>
+					<font fontName="SansSerif" size="24" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[MotorPH]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="180" y="38" width="430" height="12" forecolor="#1E376D" uuid="fe5f1c8d-c373-4a0f-9583-22c356e84a23"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[7 Jupiter Avenue cor. F. Sandoval Jr., Bagong Nayon, Quezon City]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="180" y="53" width="430" height="12" forecolor="#1E376D" uuid="904a77da-718b-4c3b-b491-9ce8be11cff8"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Phone: (028) 911-5071 / (028) 911-5072 / (028) 911-5073]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="180" y="68" width="430" height="12" forecolor="#1E376D" uuid="31242edb-e28e-41f2-97e4-30c0554a5d0b"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Email: corporate@motorph.com]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="92" width="802" height="24" forecolor="#1E376D" uuid="5063f276-a9ad-4494-8374-73c643f768f2"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="17" isBold="true" isUnderline="true"/>
+				</textElement>
+				<text><![CDATA[PAYROLL SUMMARY REPORT]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="122" width="802" height="1" forecolor="#1E376D" uuid="e9d13077-9b4a-44f2-8e36-6a1894ad51ff"/>
+				<graphicElement>
+					<pen lineWidth="1.5"/>
+				</graphicElement>
+			</line>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="108">
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="0" width="802" height="46" backcolor="#F8FAFC" uuid="ad08f1a1-405f-4df9-ac1f-86d49463187a"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="10" y="8" width="90" height="10" forecolor="#64748B" uuid="669a3645-329a-4423-bec3-4f1a8c74fac5"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CUTOFF PERIOD]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="10" y="21" width="120" height="12" uuid="2ce710ed-82af-4a33-93f4-e62581fc789f"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{CUTOFF_PERIOD}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="145" y="8" width="90" height="10" forecolor="#64748B" uuid="c9f2631b-5986-4204-b15f-fd7bbfcd88bb"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PERIOD RANGE]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="145" y="21" width="160" height="12" uuid="31f2cf03-8f7d-44a2-8727-d6ffcc1edfe3"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{PERIOD_START}.toString() + " to " + $P{PERIOD_END}.toString()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="320" y="8" width="120" height="10" forecolor="#64748B" uuid="c6f11102-74e0-48e0-80d2-0ca30ce4c07c"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PAYROLL PERIOD STATUS]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="320" y="21" width="135" height="12" uuid="247f0a32-f3f2-459b-940c-4d34eb41ce42"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{payroll_period_status} == null ? "-" : $F{payroll_period_status}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="470" y="8" width="100" height="10" forecolor="#64748B" uuid="105865e4-e4d4-4b09-bd06-df474027703d"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RUN TYPE]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="470" y="21" width="115" height="12" uuid="d9d9ccb3-f50f-4b23-91ce-60a85a846b1c"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{payroll_run_type} == null ? "-" : $F{payroll_run_type}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="600" y="8" width="80" height="10" forecolor="#64748B" uuid="33f16d59-2352-47c1-8284-a365fa8d079f"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PROCESSED BY]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="600" y="21" width="95" height="12" uuid="b69c0104-fb8c-4704-9fce-64e1fe2ccde7"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{processed_by_name} == null || $F{processed_by_name}.trim().isEmpty() ? ($F{processed_by_username} == null ? "-" : $F{processed_by_username}) : $F{processed_by_name}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="710" y="8" width="80" height="10" forecolor="#64748B" uuid="926ed65b-6065-4447-a720-f9f9a07f9826"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PROCESSED AT]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="710" y="21" width="88" height="12" uuid="30eadde5-7d54-4164-98db-ed93a04a6c44"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{processed_at} == null ? "-" : new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format($F{processed_at})]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="54" width="802" height="20" backcolor="#2F3F52" uuid="461f919f-d4d9-4c20-b323-9a0b320034d8"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="4" y="60" width="55" height="9" forecolor="#FFFFFF" uuid="96784f26-54dd-4794-a1ed-4db7a306e6c7"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EMP ID]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="63" y="60" width="112" height="9" forecolor="#FFFFFF" uuid="c3c5b033-a24b-463d-b136-1ea7b2a3b3f1"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EMPLOYEE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="180" y="60" width="95" height="9" forecolor="#FFFFFF" uuid="18de9b0d-0bcf-49bd-9760-f2898a13980e"/>
+				<textElement>
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[POSITION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="280" y="60" width="44" height="9" forecolor="#FFFFFF" uuid="874d18c5-3b5c-4bdc-9917-1a13f76389fe"/>
+				<textElement textAlignment="Center">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[HOURS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="328" y="60" width="68" height="9" forecolor="#FFFFFF" uuid="91cd8ab8-d541-44fc-842d-7c19382142d5"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[GROSS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="400" y="60" width="58" height="9" forecolor="#FFFFFF" uuid="20c4521d-55e4-4e17-b833-cae4b633a659"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SSS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="462" y="60" width="70" height="9" forecolor="#FFFFFF" uuid="f08606aa-30e9-492c-aa4c-c091c180ef39"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PHILHEALTH]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="536" y="60" width="58" height="9" forecolor="#FFFFFF" uuid="75064520-64db-48dc-a2f1-efbdc7ac5c94"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PAG-IBIG]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="598" y="60" width="58" height="9" forecolor="#FFFFFF" uuid="c6c196c5-ceea-4ce2-826b-753d6d782be7"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TAX]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="660" y="60" width="64" height="9" forecolor="#FFFFFF" uuid="0d8734ef-f7f6-40dd-a7fc-38697480149a"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DEDUCT]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="728" y="60" width="70" height="9" forecolor="#FFFFFF" uuid="75c5d564-fd48-4ded-b4ee-6101bb43d3e6"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NET PAY]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="19">
+			<textField>
+				<reportElement x="4" y="3" width="55" height="11" uuid="22def2a4-0ee6-45e1-a906-b61ac2efe455"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{employee_id}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="63" y="3" width="112" height="11" uuid="df06f643-b628-409c-81f3-e7f8120717d6"/>
+				<textElement>
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{employee_name}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="180" y="3" width="95" height="11" uuid="4c213bdf-a646-4a16-8aea-752658318c14"/>
+				<textElement>
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{position} == null ? "-" : $F{position}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="280" y="3" width="44" height="11" uuid="e0a1212f-b809-4b03-b7ef-c94ccaeff35b"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{hours_worked}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="328" y="3" width="68" height="11" uuid="d3c1c0fa-c829-4f1c-b555-fb04eb313652"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{gross}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="400" y="3" width="58" height="11" uuid="bed78c0e-51e6-4871-aa0d-2e8a10e86047"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sss}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="462" y="3" width="70" height="11" uuid="d10410f8-d1f1-4eb9-8bb9-5f40e18e33b8"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{philhealth}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="536" y="3" width="58" height="11" uuid="ea6071cb-b93f-4e91-98a2-378d4c5906e4"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{pagibig}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="598" y="3" width="58" height="11" uuid="03da604c-e3b6-4bca-b8df-80f92cde2162"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tax}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="660" y="3" width="64" height="11" uuid="c5fad82e-41cb-4f8d-9958-bfcd184f7274"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{total_deductions}]]></textFieldExpression>
+			</textField>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="728" y="3" width="70" height="11" uuid="7b680b75-7694-49aa-a010-0bad565cc74e"/>
+				<textElement textAlignment="Right">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{net}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="18" width="802" height="1" forecolor="#E5E7EB" uuid="c7ef1ef5-2a20-4994-b409-d97dad84f64f"/>
+			</line>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="18">
+			<textField>
+				<reportElement x="700" y="2" width="100" height="12" uuid="5f9c1577-f9de-4e90-a80d-b8a09fbb0853"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="94">
+			<rectangle>
+				<reportElement mode="Opaque" x="0" y="4" width="802" height="24" backcolor="#F2F2F2" uuid="bb68f895-507d-445d-b8bf-f2fdebb4f499"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="10" y="11" width="120" height="10" uuid="9cf2a100-16d8-4a29-a12b-b963f7a1e431"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EMPLOYEES PROCESSED]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="150" y="11" width="50" height="10" uuid="c0dd3327-2085-4d8e-a107-5419f91e9423"/>
+				<textElement textAlignment="Right">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{EMPLOYEE_COUNT}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="235" y="11" width="80" height="10" uuid="c0762c66-86d8-4956-b0aa-6f2949119170"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL GROSS]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="320" y="11" width="90" height="10" uuid="dbf132de-7749-4318-bc90-68ee5d05504a"/>
+				<textElement textAlignment="Right">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_GROSS}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="445" y="11" width="95" height="10" uuid="dcf92c5c-7eba-4a30-8229-7a76125f6f52"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL DEDUCT]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="545" y="11" width="90" height="10" uuid="880233dc-45a6-444e-ac10-7d64d0765c58"/>
+				<textElement textAlignment="Right">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_DEDUCTIONS}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="668" y="11" width="55" height="10" uuid="13df5455-2729-4936-8095-e7f13cf0ec43"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NET PAY]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="725" y="11" width="73" height="10" uuid="d5856993-7150-438f-9d51-e9bc9526e6cb"/>
+				<textElement textAlignment="Right">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_NET}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="10" y="42" width="70" height="10" uuid="a82036bb-0d08-4da9-b6bf-10de4e08563f"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL SSS]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="85" y="42" width="90" height="10" uuid="a88a31eb-33cc-4781-9a4c-596cf9c36f90"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_SSS}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="205" y="42" width="105" height="10" uuid="7301911a-f2b8-4b19-8801-18433dab6f5d"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL PHILHEALTH]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="315" y="42" width="90" height="10" uuid="7431cb99-7091-43a3-ac95-cabf6b9e7260"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_PHILHEALTH}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="435" y="42" width="95" height="10" uuid="4323995d-8131-44db-9f27-9bb6e448e88d"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL PAG-IBIG]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="535" y="42" width="90" height="10" uuid="bb898202-341e-4ed7-a0c8-2bdc89d72183"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_PAGIBIG}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="655" y="42" width="60" height="10" uuid="fc1a19e7-0f5b-40d9-817f-fce9d95837a5"/>
+				<textElement>
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL TAX]]></text>
+			</staticText>
+			<textField pattern="₱ #,##0.00">
+				<reportElement x="720" y="42" width="78" height="10" uuid="ddaa59df-cdd5-493c-82a9-509d66415429"/>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{TOTAL_TAX}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="10" y="72" width="782" height="10" forecolor="#6B7280" uuid="a7c60489-78b2-47fe-bda7-7284ccac84ad"/>
+				<textElement textAlignment="Center">
+					<font size="7" isItalic="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{run_scope_note} == null ? "This report summarizes finalized payroll history snapshots. Payroll computations and lifecycle processing are not modified by this report." : $F{run_scope_note}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>
