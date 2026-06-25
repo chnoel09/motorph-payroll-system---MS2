@@ -1,0 +1,606 @@
+@startuml
+' MotorPH Payroll System - AOOP Class Diagram
+' Focus: Java runtime architecture, not database ERD.
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor White
+  BorderColor #1A2A44
+  ArrowColor #1A2A44
+}
+
+title MotorPH Payroll System - AOOP Class Diagram
+
+package "Application" {
+  class Main {
+    +main(args: String[]) : void
+  }
+
+  class DatabaseConnection {
+    +connect() : Connection
+  }
+
+  class MySQLDatabase <<db>>
+}
+
+package "Utilities / External Libraries" {
+  class PasswordUtil <<utility>> {
+    +hash(password: String) : String
+    +verify(password: String, hash: String) : boolean
+  }
+
+  class JasperReports <<externalLibrary>>
+}
+
+package "Core Models" {
+  interface Payables {
+    +computeGrossSalary() : double
+    +computeDeductions() : double
+    +computeNetSalary() : double
+  }
+
+  abstract class Employee {
+    -employeeId : int
+    -departmentId : Integer
+    -supervisorEmployeeId : Integer
+    -firstName : String
+    -lastName : String
+    -position : String
+    -employmentStatus : String
+    -basicSalary : double
+    -hourlyRate : double
+    +computeGrossSalary() : double
+    +computeDeductions() : double
+    +computeNetSalary() : double
+  }
+
+  class RegularEmployee {
+    +computeGrossSalary() : double
+    +computeDeductions() : double
+    +computeNetSalary() : double
+  }
+
+  class EmployeeGovernmentId {
+    -employeeGovId : int
+    -employeeId : int
+    -governmentIdType : String
+    -governmentIdNumber : String
+  }
+
+  class User {
+    -userId : int
+    -employeeId : int
+    -username : String
+    -passwordHash : String
+    -active : boolean
+  }
+
+  class Role {
+    -roleId : int
+    -roleName : String
+  }
+
+  class Permission {
+    -permissionId : int
+    -permissionName : String
+    -moduleName : String
+    -action : String
+  }
+
+  class UserRole {
+    -userId : int
+    -roleId : int
+  }
+
+  class RolePermission {
+    -roleId : int
+    -permissionId : int
+  }
+}
+
+package "Workforce Models" {
+  class ScheduleBatch <<compatibilityModel>> {
+    -scheduleBatchId : int
+    -departmentId : Integer
+    -scheduleMonth : LocalDate
+    -status : String
+  }
+
+  note right of ScheduleBatch
+    Java compatibility model.
+    Runtime maps this to schedule_windows.
+  end note
+
+  class EmployeeSchedule {
+    -scheduleId : int
+    -scheduleBatchId : int
+    -employeeId : int
+    -scheduleDate : LocalDate
+    -status : String
+  }
+
+  class EmployeeShift {
+    -shiftId : int
+    -shiftName : String
+    -startTime : LocalTime
+    -endTime : LocalTime
+  }
+
+  class Holiday {
+    -holidayId : int
+    -holidayDate : LocalDate
+    -holidayName : String
+  }
+
+  class AttendanceRecord {
+    -employeeId : int
+    -attendanceDate : String
+    -timeIn : String
+    -timeOut : String
+    +computeHoursWorked() : double
+  }
+
+  class AttendanceAdjustment {
+    -adjustmentId : int
+    -employeeId : int
+    -attendanceDate : String
+    -adjustmentType : String
+  }
+
+  class Leave {
+    -leaveId : int
+    -employeeId : int
+    -leaveType : String
+    -status : String
+  }
+
+  class LeaveApproval {
+    -approvalId : int
+    -leaveId : int
+    -approvedBy : Integer
+    -status : String
+  }
+
+  class OvertimeRequest {
+    -overtimeId : int
+    -employeeId : int
+    -overtimeDate : LocalDate
+    -overtimeHours : double
+    -status : String
+  }
+}
+
+package "Payroll / Workflow Models" {
+  class PayrollPeriod {
+    -periodId : int
+    -cutoffPeriod : String
+    -periodStart : LocalDate
+    -periodEnd : LocalDate
+    -status : String
+  }
+
+  class WorkforcePayrollReadiness {
+    -readinessId : int
+    -payrollPeriodId : int
+    -employeeId : int
+    -readinessStatus : String
+    -currentOwnerRole : String
+  }
+
+  class PayrollRun {
+    -runId : int
+    -periodId : int
+    -processedBy : Integer
+    -processedAt : LocalDateTime
+    -status : String
+  }
+
+  class PayrollRunDetail {
+    -runDetailId : int
+    -runId : int
+    -employeeId : int
+    -hoursWorked : double
+    -basicComponent : double
+    -allowanceComponent : double
+  }
+
+  class PayrollHistoryRecord {
+    -runDetailId : Integer
+    -employeeId : int
+    -cutoffPeriod : String
+    -gross : double
+    -totalDeductions : double
+    -net : double
+  }
+
+  class PayrollRecord <<computedModel>>
+
+  class PayrollSummary {
+    -totalGross : double
+    -totalDeductions : double
+    -totalNet : double
+    -employeeCount : int
+  }
+
+  class PayrollDeduction {
+    -payrollDeductionId : int
+    -runDetailId : int
+    -deductionId : int
+    -deductionAmount : double
+  }
+
+  class Deduction {
+    -deductionId : int
+    -deductionName : String
+    -deductionTypeId : int
+  }
+
+  class DeductionType {
+    -deductionTypeId : int
+    -typeName : String
+  }
+
+  class DeductionBracket {
+    -bracketId : int
+    -deductionId : int
+    -minimumAmount : double
+    -maximumAmount : double
+  }
+
+  class Payslip {
+    -payslipId : int
+    -runDetailId : int
+    -employeeId : int
+    -filePath : String
+  }
+}
+
+package "Operational Models" {
+  class OperationalEvent {
+    -eventId : int
+    -eventType : String
+    -actorUserId : Integer
+    -title : String
+    -message : String
+  }
+
+  class PersistentNotification {
+    -notificationId : int
+    -eventId : int
+    -targetEmployeeId : Integer
+    -targetRole : String
+  }
+
+  class AuditLog {
+    -auditId : int
+    -userId : Integer
+    -action : String
+    -tableName : String
+  }
+}
+
+package "Repository Interfaces" {
+  interface EmployeeRepository
+  interface UserRepository
+  interface EmployeeGovernmentIdRepository
+  interface AttendanceRepository
+  interface AttendanceAdjustmentRepository
+  interface LeaveRepository
+  interface LeaveApprovalRepository
+  interface OvertimeRequestRepository
+  interface ScheduleBatchRepository
+  interface EmployeeScheduleRepository
+  interface EmployeeShiftRepository
+  interface HolidayRepository
+  interface WorkforcePayrollReadinessRepository
+  interface PayrollPeriodRepository
+  interface PayrollHistoryRepository
+  interface PayrollRunRepository
+  interface PayrollRunDetailRepository
+  interface PayrollDeductionRepository
+  interface PayslipRepository
+  interface DeductionRepository
+  interface DeductionTypeRepository
+  interface DeductionBracketRepository
+  interface OperationalEventRepository
+  interface NotificationRepository
+  interface AuditLogRepository
+}
+
+package "Database Repositories" {
+  class EmployeeDatabaseRepository <<repository>>
+  class UserDatabaseRepository <<repository>>
+  class EmployeeGovernmentIdDatabaseRepository <<repository>>
+  class AttendanceDatabaseRepository <<repository>>
+  class AttendanceAdjustmentDatabaseRepository <<repository>>
+  class LeaveDatabaseRepository <<repository>>
+  class LeaveApprovalDatabaseRepository <<repository>>
+  class OvertimeRequestDatabaseRepository <<repository>>
+  class ScheduleBatchDatabaseRepository <<repository>>
+  class EmployeeScheduleDatabaseRepository <<repository>>
+  class EmployeeShiftDatabaseRepository <<repository>>
+  class HolidayDatabaseRepository <<repository>>
+  class WorkforcePayrollReadinessDatabaseRepository <<repository>>
+  class PayrollPeriodDatabaseRepository <<repository>>
+  class PayrollHistoryDatabaseRepository <<repository>>
+  class PayrollRunDatabaseRepository <<repository>>
+  class PayrollRunDetailDatabaseRepository <<repository>>
+  class PayrollDeductionDatabaseRepository <<repository>>
+  class PayslipDatabaseRepository <<repository>>
+  class DeductionDatabaseRepository <<repository>>
+  class DeductionTypeDatabaseRepository <<repository>>
+  class DeductionBracketDatabaseRepository <<repository>>
+  class OperationalEventDatabaseRepository <<repository>>
+  class NotificationDatabaseRepository <<repository>>
+  class AuditLogDatabaseRepository <<repository>>
+}
+
+package "Services" {
+  class LoginService <<service>> {
+    +login(username: String, password: String) : Employee
+  }
+
+  class EmployeeService <<service>> {
+    +getAllEmployees() : List~Employee~
+    +addEmployee(employee: Employee) : void
+    +updateEmployee(employee: Employee) : void
+  }
+
+  class RoleAccessService <<service>> {
+    +canAccessView(employee: Employee, viewId: String) : boolean
+  }
+
+  class AccessControlService <<service>>
+  class DashboardService <<service>>
+  class ScheduleService <<service>>
+  class AttendanceService <<service>>
+  class AttendanceAdjustmentService <<service>>
+  class ApprovalWorkflowService <<service>>
+  class LeaveService <<service>>
+  class LeaveApprovalService <<service>>
+  class OvertimeService <<service>>
+  class PayrollReadinessService <<service>>
+
+  class WorkforceReadinessService <<service>> {
+    +markReadyForHrReview(readinessId: int, supervisor: Employee) : void
+    +validateWorkforceReadiness(readinessId: int, hrUser: Employee) : void
+    +endorseToFinance(readinessId: int, hrUser: Employee) : void
+    +confirmFinanceReadiness(readinessId: int, financeUser: Employee) : void
+  }
+
+  class PayrollPeriodLifecycleService <<service>>
+  class PayrollLifecycleService <<service>>
+  class PayrollRunService <<service>>
+
+  class PayrollProcessor <<service>> {
+    +processPayroll(employee: Employee, hoursWorked: double) : PayrollRecord
+  }
+
+  class PayrollService <<service>> {
+    +processAndSavePayrollForEmployees(cutoff: String, start: String, end: String, employeeIds: List~Integer~, processedBy: Integer) : int
+    +getPayrollHistoryByCutoff(cutoffPeriod: String) : List~PayrollHistoryRecord~
+  }
+
+  class DeductionService <<service>>
+  class AuditService <<service>>
+  class OperationalEventService <<service>>
+  class OperationalInboxService <<service>>
+  class PayslipService <<service>>
+
+  class ReportService <<service>> {
+    +generatePayslip(employeeId: int, cutoffPeriod: String, outputPath: String) : void
+    +generateTimecard(employeeId: int, startDate: Date, endDate: Date, outputPath: String) : void
+    +generatePayrollSummary(cutoffPeriod: String, startDate: Date, endDate: Date, outputPath: String) : void
+  }
+}
+
+package "Views" {
+  interface RefreshablePanel {
+    +refreshData() : void
+  }
+
+  class LoginFrame <<ui>>
+  class MainAppFrame <<ui>>
+  class DashboardPanel <<ui>>
+  class EmployeePanel <<ui>>
+  class EmployeeFormDialog <<ui>>
+  class TeamOperationsPanel <<ui>>
+  class HRPanel <<ui>>
+  class PayrollPanel <<ui>>
+  class AttendancePanel <<ui>>
+  class AttendanceAdjustmentPanel <<ui>>
+  class SchedulingPanel <<ui>>
+  class LeavePanel <<ui>>
+  class OvertimePanel <<ui>>
+  class OperationalInboxPanel <<ui>>
+  class PayslipPanel <<ui>>
+  class HRPayrollHistoryPanel <<ui>>
+  class OrganizationChartPanel <<ui>>
+}
+
+' Inheritance and interfaces
+Payables <|.. Employee
+Employee <|-- RegularEmployee
+
+' Core model associations
+Employee "1" --> "0..1" User
+Employee "1" --> "0..*" EmployeeGovernmentId
+Employee "1" --> "0..*" EmployeeSchedule
+Employee "1" --> "0..*" AttendanceRecord
+Employee "1" --> "0..*" AttendanceAdjustment
+Employee "1" --> "0..*" Leave
+Employee "1" --> "0..*" OvertimeRequest
+Employee "1" --> "0..*" WorkforcePayrollReadiness
+Employee "1" --> "0..*" PayrollHistoryRecord
+User "1" --> "0..*" UserRole
+Role "1" --> "0..*" UserRole
+Role "1" --> "0..*" RolePermission
+Permission "1" --> "0..*" RolePermission
+
+' Workforce / payroll associations
+ScheduleBatch "1" --> "0..*" EmployeeSchedule
+EmployeeShift "1" --> "0..*" EmployeeSchedule
+Holiday "1" --> "0..*" EmployeeSchedule
+Leave "1" --> "0..*" LeaveApproval
+PayrollPeriod "1" --> "0..*" WorkforcePayrollReadiness
+PayrollPeriod "1" --> "0..*" PayrollRun
+PayrollRun "1" --> "0..*" PayrollRunDetail
+PayrollRunDetail "1" --> "0..1" PayrollHistoryRecord
+PayrollRunDetail "1" --> "0..*" PayrollDeduction
+PayrollRunDetail "1" --> "0..1" Payslip
+DeductionType "1" --> "0..*" Deduction
+Deduction "1" --> "0..*" DeductionBracket
+Deduction "1" --> "0..*" PayrollDeduction
+OperationalEvent "1" --> "0..*" PersistentNotification
+AuditLog --> User
+
+' Repository implementations
+EmployeeRepository <|.. EmployeeDatabaseRepository
+UserRepository <|.. UserDatabaseRepository
+EmployeeGovernmentIdRepository <|.. EmployeeGovernmentIdDatabaseRepository
+AttendanceRepository <|.. AttendanceDatabaseRepository
+AttendanceAdjustmentRepository <|.. AttendanceAdjustmentDatabaseRepository
+LeaveRepository <|.. LeaveDatabaseRepository
+LeaveApprovalRepository <|.. LeaveApprovalDatabaseRepository
+OvertimeRequestRepository <|.. OvertimeRequestDatabaseRepository
+ScheduleBatchRepository <|.. ScheduleBatchDatabaseRepository
+EmployeeScheduleRepository <|.. EmployeeScheduleDatabaseRepository
+EmployeeShiftRepository <|.. EmployeeShiftDatabaseRepository
+HolidayRepository <|.. HolidayDatabaseRepository
+WorkforcePayrollReadinessRepository <|.. WorkforcePayrollReadinessDatabaseRepository
+PayrollPeriodRepository <|.. PayrollPeriodDatabaseRepository
+PayrollHistoryRepository <|.. PayrollHistoryDatabaseRepository
+PayrollRunRepository <|.. PayrollRunDatabaseRepository
+PayrollRunDetailRepository <|.. PayrollRunDetailDatabaseRepository
+PayrollDeductionRepository <|.. PayrollDeductionDatabaseRepository
+PayslipRepository <|.. PayslipDatabaseRepository
+DeductionRepository <|.. DeductionDatabaseRepository
+DeductionTypeRepository <|.. DeductionTypeDatabaseRepository
+DeductionBracketRepository <|.. DeductionBracketDatabaseRepository
+OperationalEventRepository <|.. OperationalEventDatabaseRepository
+NotificationRepository <|.. NotificationDatabaseRepository
+AuditLogRepository <|.. AuditLogDatabaseRepository
+
+' Repository database dependency
+EmployeeDatabaseRepository ..> DatabaseConnection
+UserDatabaseRepository ..> DatabaseConnection
+EmployeeGovernmentIdDatabaseRepository ..> DatabaseConnection
+AttendanceDatabaseRepository ..> DatabaseConnection
+AttendanceAdjustmentDatabaseRepository ..> DatabaseConnection
+LeaveDatabaseRepository ..> DatabaseConnection
+LeaveApprovalDatabaseRepository ..> DatabaseConnection
+OvertimeRequestDatabaseRepository ..> DatabaseConnection
+ScheduleBatchDatabaseRepository ..> DatabaseConnection
+EmployeeScheduleDatabaseRepository ..> DatabaseConnection
+EmployeeShiftDatabaseRepository ..> DatabaseConnection
+HolidayDatabaseRepository ..> DatabaseConnection
+WorkforcePayrollReadinessDatabaseRepository ..> DatabaseConnection
+PayrollPeriodDatabaseRepository ..> DatabaseConnection
+PayrollHistoryDatabaseRepository ..> DatabaseConnection
+PayrollRunDatabaseRepository ..> DatabaseConnection
+PayrollRunDetailDatabaseRepository ..> DatabaseConnection
+PayrollDeductionDatabaseRepository ..> DatabaseConnection
+PayslipDatabaseRepository ..> DatabaseConnection
+DeductionDatabaseRepository ..> DatabaseConnection
+DeductionTypeDatabaseRepository ..> DatabaseConnection
+DeductionBracketDatabaseRepository ..> DatabaseConnection
+OperationalEventDatabaseRepository ..> DatabaseConnection
+NotificationDatabaseRepository ..> DatabaseConnection
+AuditLogDatabaseRepository ..> DatabaseConnection
+DatabaseConnection ..> MySQLDatabase
+
+' UI flow
+Main ..> LoginFrame
+LoginFrame ..> LoginService
+LoginFrame ..> MainAppFrame
+MainAppFrame ..> RoleAccessService
+MainAppFrame ..> DashboardPanel
+MainAppFrame ..> EmployeePanel
+MainAppFrame ..> TeamOperationsPanel
+MainAppFrame ..> HRPanel
+MainAppFrame ..> PayrollPanel
+MainAppFrame ..> AttendancePanel
+MainAppFrame ..> AttendanceAdjustmentPanel
+MainAppFrame ..> SchedulingPanel
+MainAppFrame ..> OperationalInboxPanel
+MainAppFrame ..> PayslipPanel
+MainAppFrame ..> HRPayrollHistoryPanel
+MainAppFrame ..> OrganizationChartPanel
+
+' Refreshable views
+DashboardPanel ..|> RefreshablePanel
+AttendancePanel ..|> RefreshablePanel
+AttendanceAdjustmentPanel ..|> RefreshablePanel
+TeamOperationsPanel ..|> RefreshablePanel
+HRPanel ..|> RefreshablePanel
+PayrollPanel ..|> RefreshablePanel
+PayslipPanel ..|> RefreshablePanel
+HRPayrollHistoryPanel ..|> RefreshablePanel
+OperationalInboxPanel ..|> RefreshablePanel
+OrganizationChartPanel ..|> RefreshablePanel
+SchedulingPanel ..|> RefreshablePanel
+
+' UI to service dependencies
+DashboardPanel ..> DashboardService
+EmployeePanel ..> EmployeeService
+EmployeeFormDialog ..> EmployeeService
+TeamOperationsPanel ..> WorkforceReadinessService
+HRPanel ..> WorkforceReadinessService
+PayrollPanel ..> PayrollService
+PayrollPanel ..> WorkforceReadinessService
+AttendancePanel ..> AttendanceService
+AttendanceAdjustmentPanel ..> AttendanceService
+SchedulingPanel ..> ScheduleService
+LeavePanel ..> LeaveService
+OvertimePanel ..> OvertimeService
+OperationalInboxPanel ..> OperationalInboxService
+PayslipPanel ..> ReportService
+HRPayrollHistoryPanel ..> PayrollService
+HRPayrollHistoryPanel ..> ReportService
+
+' Service to repository dependencies
+LoginService ..> UserRepository
+LoginService ..> EmployeeRepository
+LoginService ..> PasswordUtil
+DashboardService ..> EmployeeService
+DashboardService ..> LeaveService
+EmployeeService ..> EmployeeRepository
+EmployeeService ..> EmployeeGovernmentIdRepository
+EmployeeService ..> UserRepository
+ScheduleService ..> ScheduleBatchRepository
+ScheduleService ..> EmployeeScheduleRepository
+ScheduleService ..> EmployeeShiftRepository
+ScheduleService ..> HolidayRepository
+AttendanceService ..> AttendanceRepository
+AttendanceAdjustmentService ..> AttendanceAdjustmentRepository
+LeaveService ..> LeaveRepository
+LeaveService ..> ApprovalWorkflowService
+LeaveApprovalService ..> LeaveApprovalRepository
+OvertimeService ..> OvertimeRequestRepository
+WorkforceReadinessService ..> WorkforcePayrollReadinessRepository
+WorkforceReadinessService ..> PayrollReadinessService
+WorkforceReadinessService ..> OperationalEventService
+PayrollLifecycleService ..> PayrollService
+PayrollPeriodLifecycleService ..> PayrollPeriodRepository
+PayrollService ..> PayrollProcessor
+PayrollService ..> PayrollHistoryRepository
+PayrollService ..> PayrollRunService
+PayrollService ..> DeductionService
+PayrollService ..> OperationalEventService
+PayrollRunService ..> PayrollRunRepository
+PayrollRunService ..> PayrollRunDetailRepository
+DeductionService ..> PayrollDeductionRepository
+DeductionService ..> DeductionRepository
+DeductionService ..> DeductionTypeRepository
+DeductionService ..> DeductionBracketRepository
+AuditService ..> AuditLogRepository
+OperationalEventService ..> OperationalEventRepository
+OperationalEventService ..> NotificationRepository
+OperationalInboxService ..> NotificationRepository
+PayslipService ..> PayslipRepository
+ReportService ..> JasperReports
+
+@enduml
