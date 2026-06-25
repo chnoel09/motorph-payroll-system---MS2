@@ -1,0 +1,13 @@
+/target/
+/*.log
+/.idea/
+/*.iml
+/Group_Final_Implementation/OOP/target/
+
+# macOS
+.DS_Store
+
+archive/
+target/
+/out/
+.vscode/
