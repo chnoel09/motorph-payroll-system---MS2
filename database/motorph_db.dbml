@@ -1,0 +1,639 @@
+Table "attendance_adjustments" {
+  "adjustment_id" int [pk, not null, increment]
+  "employee_id" int [not null]
+  "attendance_date" date [not null]
+  "adjustment_type" varchar(50) [not null]
+  "remarks" varchar(500) [not null]
+  "adjusted_by_user_id" int
+  "adjusted_at" datetime
+
+  indexes {
+    ("employee_id", "attendance_date") [name: "idx_attendance_adjustments_employee_date"]
+    "attendance_date" [name: "idx_attendance_adjustments_date"]
+    "adjustment_type" [name: "idx_attendance_adjustments_type"]
+    "adjusted_by_user_id" [name: "idx_attendance_adjustments_user"]
+  }
+}
+
+Table "attendance_records" {
+  "employee_id" int [not null]
+  "attendance_date" date [not null]
+  "time_in" varchar(20)
+  "time_out" varchar(20)
+
+  indexes {
+    ("employee_id", "attendance_date") [pk]
+  }
+}
+
+Table "audit_logs" {
+  "audit_id" int [pk, not null, increment]
+  "user_id" int
+  "action" varchar(100) [not null]
+  "table_name" varchar(100)
+  "record_id" varchar(100)
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    "user_id" [name: "idx_audit_logs_user"]
+    "created_at" [name: "idx_audit_logs_created_at"]
+  }
+}
+
+Table "deduction_brackets" {
+  "deduction_bracket_id" int [pk, not null, increment]
+  "deduction_id" int [not null]
+  "salary_min" decimal(10,2) [not null, default: '0.00']
+  "salary_max" decimal(10,2) [not null, default: '0.00']
+  "employee_share" decimal(10,2) [not null, default: '0.00']
+  "employer_share" decimal(10,2) [not null, default: '0.00']
+  "rate" decimal(8,4) [not null, default: '0.0000']
+  "effective_date" date
+
+  indexes {
+    ("deduction_id", "effective_date", "salary_min", "salary_max") [name: "idx_deduction_brackets_lookup"]
+  }
+}
+
+Table "deduction_types" {
+  "deduction_type_id" int [pk, not null, increment]
+  "deduction_type_name" varchar(100) [not null]
+
+  indexes {
+    "deduction_type_name" [unique, name: "deduction_type_name"]
+  }
+}
+
+Table "deductions" {
+  "deduction_id" int [pk, not null, increment]
+  "deduction_type_id" int [not null]
+  "deduction_name" varchar(100) [not null]
+  "government_mandated" boolean [not null, default: '0']
+  "computation_method" varchar(50) [not null, default: 'LEGACY_FORMULA']
+
+  indexes {
+    "deduction_name" [unique, name: "uq_deduction_name"]
+    "deduction_type_id" [name: "idx_deductions_type"]
+  }
+}
+
+Table "departments" {
+  "department_id" int [pk, not null, increment]
+  "department_name" varchar(100) [not null]
+
+  indexes {
+    "department_name" [unique, name: "department_name"]
+  }
+}
+
+Table "employee_government_ids" {
+  "government_id" int [pk, not null, increment]
+  "employee_id" int [not null]
+  "id_type" varchar(30) [not null]
+  "id_number" varchar(50) [not null]
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ("employee_id", "id_type") [unique, name: "uq_employee_government_id_type"]
+  }
+}
+
+Table "employee_schedules" {
+  "schedule_id" int [pk, not null, increment]
+  "schedule_window_id" int [not null]
+  "employee_id" int [not null]
+  "shift_id" int
+  "schedule_date" date [not null]
+  "rest_day" boolean [not null, default: '0']
+  "holiday_id" int
+  "status" varchar(50) [not null, default: 'Assigned']
+
+  indexes {
+    ("employee_id", "schedule_date") [unique, name: "uq_employee_schedule_date"]
+    "schedule_window_id" [name: "idx_employee_schedules_window"]
+    "shift_id" [name: "idx_employee_schedules_shift"]
+    "holiday_id" [name: "idx_employee_schedules_holiday"]
+  }
+}
+
+Table "employee_shifts" {
+  "shift_id" int [pk, not null, increment]
+  "shift_name" varchar(100) [not null]
+  "start_time" time [not null]
+  "end_time" time [not null]
+  "grace_minutes" int [not null, default: '0']
+  "effective_date" date
+  "assigned_by_user_id" int
+
+  Note: 'Removed unsupported check syntax: grace_minutes >= 0.'
+
+  indexes {
+    "assigned_by_user_id" [name: "idx_employee_shifts_assigned_by_user"]
+  }
+}
+
+Table "employees" {
+  "employee_id" int [pk, not null, increment]
+  "department_id" int
+  "supervisor_employee_id" int
+  "first_name" varchar(100) [not null]
+  "last_name" varchar(100) [not null]
+  "birthday" date
+  "address" varchar(255)
+  "phone_number" varchar(50)
+  "email" varchar(150)
+  "status" varchar(50)
+  "position" varchar(100)
+  "basic_salary" decimal(10,2) [not null]
+  "hourly_rate" decimal(10,2)
+  "rice_subsidy" decimal(10,2)
+  "phone_allowance" decimal(10,2)
+  "clothing_allowance" decimal(10,2)
+  "gross_semi_monthly_rate" decimal(10,2)
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    "email" [unique, name: "email"]
+    "department_id" [name: "idx_employees_department"]
+    "supervisor_employee_id" [name: "idx_employees_supervisor"]
+  }
+}
+
+Table "holidays" {
+  "holiday_id" int [pk, not null, increment]
+  "holiday_name" varchar(150) [not null]
+  "holiday_date" date [not null]
+  "holiday_type" varchar(50) [not null]
+  "multiplier" decimal(6,2) [not null]
+
+  Note: 'Removed unsupported check syntax: multiplier > 0.'
+
+  indexes {
+    "holiday_date" [unique, name: "holiday_date"]
+  }
+}
+
+Table "leave_approvals" {
+  "approval_id" int [pk, not null, increment]
+  "leave_id" int [not null]
+  "approved_by_user_id" int [not null]
+  "approval_role" varchar(50)
+  "action" varchar(50) [not null]
+  "approval_date" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "remarks" varchar(255)
+
+  indexes {
+    "leave_id" [name: "idx_leave_approvals_leave"]
+    "approved_by_user_id" [name: "idx_leave_approvals_user"]
+  }
+}
+
+Table "leaves" {
+  "leave_id" int [pk, not null, increment]
+  "employee_id" int [not null]
+  "leave_type" varchar(50) [not null]
+  "start_date" date [not null]
+  "end_date" date [not null]
+  "reason" varchar(255)
+  "status" varchar(50) [not null, default: 'Pending']
+
+  Note: 'Removed unsupported check syntax: end_date >= start_date.'
+
+  indexes {
+    "employee_id" [name: "idx_leaves_employee"]
+    "status" [name: "idx_leaves_status"]
+  }
+}
+
+Table "notifications" {
+  "notification_id" int [pk, not null, increment]
+  "event_id" int [not null]
+  "target_employee_id" int
+  "target_role" varchar(50)
+  "title" varchar(150) [not null]
+  "message" varchar(500) [not null]
+  "category" varchar(100) [not null]
+  "severity" varchar(30) [not null, default: 'INFO']
+  "priority" varchar(30) [not null, default: 'INFORMATIONAL']
+  "notification_status" varchar(30) [not null, default: 'ACTIVE']
+  "read_at" datetime
+  "acknowledged_at" datetime
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    "event_id" [name: "idx_notifications_event"]
+    "target_employee_id" [name: "idx_notifications_target_employee"]
+    "target_role" [name: "idx_notifications_target_role"]
+    "notification_status" [name: "idx_notifications_status"]
+    "read_at" [name: "idx_notifications_read_at"]
+    "created_at" [name: "idx_notifications_created_at"]
+  }
+}
+
+Table "operational_events" {
+  "event_id" int [pk, not null, increment]
+  "event_type" varchar(100) [not null]
+  "category" varchar(100) [not null]
+  "severity" varchar(30) [not null, default: 'INFO']
+  "priority" varchar(30) [not null, default: 'INFORMATIONAL']
+  "reference_table" varchar(100)
+  "reference_id" varchar(100)
+  "actor_user_id" int
+  "title" varchar(150) [not null]
+  "message" varchar(500) [not null]
+  "event_status" varchar(30) [not null, default: 'ACTIVE']
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    "event_type" [name: "idx_operational_events_type"]
+    "category" [name: "idx_operational_events_category"]
+    ("reference_table", "reference_id") [name: "idx_operational_events_reference"]
+    "created_at" [name: "idx_operational_events_created_at"]
+    "actor_user_id" [name: "idx_operational_events_actor_user"]
+  }
+}
+
+Table "overtime_requests" {
+  "overtime_id" int [pk, not null, increment]
+  "employee_id" int [not null]
+  "overtime_date" date [not null]
+  "overtime_hours" decimal(5,2) [not null]
+  "reason" varchar(500) [not null]
+  "status" varchar(50) [not null, default: 'PENDING']
+  "approved_by_user_id" int
+  "approved_role" varchar(50)
+  "approved_at" datetime
+  "remarks" varchar(500)
+
+  Note: 'Removed unsupported check syntax: overtime_hours > 0.'
+
+  indexes {
+    ("employee_id", "overtime_date") [name: "idx_overtime_requests_employee_date"]
+    "status" [name: "idx_overtime_requests_status"]
+    "overtime_date" [name: "idx_overtime_requests_date"]
+    "approved_by_user_id" [name: "idx_overtime_requests_user"]
+  }
+}
+
+Table "payroll_deductions" {
+  "payroll_deduction_id" int [pk, not null, increment]
+  "run_detail_id" int [not null]
+  "deduction_id" int [not null]
+  "deduction_amount" decimal(10,2) [not null, default: '0.00']
+  "remarks" varchar(255)
+
+  indexes {
+    ("run_detail_id", "deduction_id") [unique, name: "uq_payroll_deduction_detail_type"]
+    "deduction_id" [name: "idx_payroll_deductions_deduction"]
+  }
+}
+
+Table "payroll_history" {
+  "history_id" int [pk, not null, increment]
+  "run_detail_id" int
+  "employee_id" int [not null]
+  "cutoff_period" varchar(50) [not null]
+  "period_start" date
+  "period_end" date
+  "hours_worked" decimal(10,2) [default: '0.00']
+  "basic_component" decimal(10,2)
+  "allowance_component" decimal(10,2)
+  "gross" decimal(10,2) [not null]
+  "sss" decimal(10,2)
+  "philhealth" decimal(10,2)
+  "pagibig" decimal(10,2)
+  "tax" decimal(10,2)
+  "total_deductions" decimal(10,2) [not null]
+  "net" decimal(10,2) [not null]
+
+  indexes {
+    ("employee_id", "cutoff_period") [unique, name: "uq_payroll_history_employee_cutoff"]
+    "run_detail_id" [unique, name: "run_detail_id"]
+  }
+}
+
+Table "payroll_periods" {
+  "period_id" int [pk, not null, increment]
+  "cutoff_period" varchar(50) [not null]
+  "period_start" date [not null]
+  "period_end" date [not null]
+  "status" varchar(50) [not null, default: 'Draft']
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "finalized_at" datetime
+
+  Note: 'Removed unsupported check syntax: period_end >= period_start.'
+
+  indexes {
+    ("cutoff_period", "period_start", "period_end") [unique, name: "uq_payroll_period_cutoff_range"]
+    ("period_start", "period_end") [unique, name: "uq_payroll_period_date_range"]
+  }
+}
+
+Table "payroll_run_details" {
+  "run_detail_id" int [pk, not null, increment]
+  "run_id" int [not null]
+  "employee_id" int [not null]
+  "hours_worked" decimal(10,2) [default: '0.00']
+  "overtime_hours" decimal(10,2) [default: '0.00']
+  "basic_component" decimal(10,2)
+  "allowance_component" decimal(10,2)
+
+  indexes {
+    ("run_id", "employee_id") [unique, name: "uq_payroll_run_details_run_employee"]
+    "employee_id" [name: "idx_payroll_run_details_employee"]
+  }
+}
+
+Table "payroll_runs" {
+  "run_id" int [pk, not null, increment]
+  "period_id" int [not null]
+  "processed_by_user_id" int
+  "processed_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "status" varchar(50) [not null, default: 'Processed']
+
+  indexes {
+    "period_id" [name: "idx_payroll_runs_period"]
+    "processed_by_user_id" [name: "idx_payroll_runs_user"]
+  }
+}
+
+Table "payslips" {
+  "payslip_id" int [pk, not null, increment]
+  "run_detail_id" int [not null]
+  "employee_id" int [not null]
+  "generated_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "file_path" varchar(255)
+
+  indexes {
+    "run_detail_id" [unique, name: "run_detail_id"]
+    "employee_id" [name: "idx_payslips_employee"]
+  }
+}
+
+Table "permissions" {
+  "permission_id" int [pk, not null, increment]
+  "permission_name" varchar(100) [not null]
+  "module_name" varchar(100)
+  "action" varchar(100)
+  "description" varchar(255)
+
+  indexes {
+    "permission_name" [unique, name: "permission_name"]
+  }
+}
+
+Table "role_permissions" {
+  "role_id" int [not null]
+  "permission_id" int [not null]
+
+  indexes {
+    ("role_id", "permission_id") [pk]
+    "permission_id" [name: "fk_role_permissions_permission"]
+  }
+}
+
+Table "roles" {
+  "role_id" int [pk, not null, increment]
+  "role_name" varchar(50) [not null]
+
+  indexes {
+    "role_name" [unique, name: "role_name"]
+  }
+}
+
+Table "schedule_windows" {
+  "schedule_window_id" int [pk, not null, increment]
+  "department_id" int
+  "window_name" varchar(100) [not null]
+  "coverage_start" date [not null]
+  "coverage_end" date [not null]
+  "status" varchar(50) [not null, default: 'Draft']
+  "created_by_user_id" int
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "finalized_by_user_id" int
+  "finalized_at" datetime
+
+  Note: 'Removed unsupported check syntax: coverage_end >= coverage_start.'
+
+  indexes {
+    ("window_name", "coverage_start", "coverage_end") [unique, name: "uq_schedule_window_range"]
+    "department_id" [name: "idx_schedule_windows_department"]
+    "created_by_user_id" [name: "idx_schedule_windows_created_by"]
+    "finalized_by_user_id" [name: "idx_schedule_windows_finalized_by"]
+  }
+}
+
+Table "user_roles" {
+  "user_id" int [not null]
+  "role_id" int [not null]
+
+  indexes {
+    ("user_id", "role_id") [pk]
+    "role_id" [name: "fk_user_roles_role"]
+  }
+}
+
+Table "users" {
+  "user_id" int [pk, not null, increment]
+  "employee_id" int [not null]
+  "username" varchar(100) [not null]
+  "password_hash" varchar(255) [not null]
+  "active" boolean [not null, default: '1']
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    "employee_id" [unique, name: "employee_id"]
+    "username" [unique, name: "username"]
+  }
+}
+
+Table "workforce_payroll_readiness" {
+  "readiness_id" int [pk, not null, increment]
+  "payroll_period_id" int [not null]
+  "employee_id" int [not null]
+  "readiness_status" varchar(50) [not null]
+  "current_owner_role" varchar(50) [not null]
+  "supervisor_employee_id" int
+  "supervisor_cleared_by_user_id" int
+  "supervisor_cleared_at" datetime
+  "hr_validated_by_user_id" int
+  "hr_validated_at" datetime
+  "hr_remarks" varchar(500)
+  "finance_validated_by_user_id" int
+  "finance_validated_at" datetime
+  "finance_remarks" varchar(500)
+  "returned_by_user_id" int
+  "returned_to_role" varchar(50)
+  "returned_at" datetime
+  "return_reason" varchar(500)
+  "created_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ("payroll_period_id", "employee_id") [unique, name: "uq_workforce_payroll_readiness_period_employee"]
+    "readiness_status" [name: "idx_wpr_status"]
+    "current_owner_role" [name: "idx_wpr_owner"]
+    "employee_id" [name: "idx_wpr_employee"]
+    "supervisor_employee_id" [name: "idx_wpr_supervisor"]
+    "supervisor_cleared_by_user_id" [name: "idx_wpr_supervisor_cleared_by_user"]
+    "hr_validated_by_user_id" [name: "idx_wpr_hr_validated_by_user"]
+    "finance_validated_by_user_id" [name: "idx_wpr_finance_validated_by_user"]
+    "returned_by_user_id" [name: "idx_wpr_returned_by_user"]
+  }
+}
+
+TableGroup "hr_core" [color: #3498db] {
+  "employees"
+  "departments"
+  "employee_government_ids"
+}
+
+TableGroup "auth_rbac" [color: #1abc9c] {
+  "users"
+  "roles"
+  "permissions"
+  "user_roles"
+  "role_permissions"
+}
+
+TableGroup "scheduling_attendance" [color: #9b59b6] {
+  "attendance_adjustments"
+  "attendance_records"
+  "employee_schedules"
+  "employee_shifts"
+  "holidays"
+  "schedule_windows"
+}
+
+TableGroup "leave_overtime" [color: #8e44ad] {
+  "leave_approvals"
+  "leaves"
+  "overtime_requests"
+}
+
+TableGroup "payroll" [color: #e67e22] {
+  "deduction_brackets"
+  "deduction_types"
+  "deductions"
+  "payroll_deductions"
+  "payroll_history"
+  "payroll_periods"
+  "payroll_run_details"
+  "payroll_runs"
+  "payslips"
+}
+
+TableGroup "workflow_ops" [color: #f1c40f] {
+  "notifications"
+  "operational_events"
+  "workforce_payroll_readiness"
+}
+
+TableGroup "audit_compliance" [color: #e74c3c] {
+  "audit_logs"
+}
+
+Ref "fk_attendance_adjustments_employee": "employees"."employee_id" < "attendance_adjustments"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_attendance_adjustments_user": "users"."user_id" < "attendance_adjustments"."adjusted_by_user_id" [update: cascade, delete: set null]
+Ref "fk_attendance_records_employee": "employees"."employee_id" < "attendance_records"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_audit_logs_user": "users"."user_id" < "audit_logs"."user_id" [update: cascade, delete: set null]
+Ref "fk_deduction_brackets_deduction": "deductions"."deduction_id" < "deduction_brackets"."deduction_id" [update: cascade, delete: cascade]
+Ref "fk_deductions_type": "deduction_types"."deduction_type_id" < "deductions"."deduction_type_id" [update: cascade, delete: restrict]
+Ref "fk_employee_government_ids_employee": "employees"."employee_id" < "employee_government_ids"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_employee_schedules_employee": "employees"."employee_id" < "employee_schedules"."employee_id" [update: cascade, delete: restrict]
+Ref "fk_employee_schedules_holiday": "holidays"."holiday_id" < "employee_schedules"."holiday_id" [update: cascade, delete: set null]
+Ref "fk_employee_schedules_shift": "employee_shifts"."shift_id" < "employee_schedules"."shift_id" [update: cascade, delete: set null]
+Ref "fk_employee_schedules_window": "schedule_windows"."schedule_window_id" < "employee_schedules"."schedule_window_id" [update: cascade, delete: cascade]
+Ref "fk_employee_shifts_assigned_by_user": "users"."user_id" < "employee_shifts"."assigned_by_user_id" [update: cascade, delete: set null]
+Ref "fk_employees_department": "departments"."department_id" < "employees"."department_id" [update: cascade, delete: set null]
+Ref "fk_employees_supervisor": "employees"."employee_id" < "employees"."supervisor_employee_id" [update: cascade, delete: set null]
+Ref "fk_leave_approvals_leave": "leaves"."leave_id" < "leave_approvals"."leave_id" [update: cascade, delete: cascade]
+Ref "fk_leave_approvals_user": "users"."user_id" < "leave_approvals"."approved_by_user_id" [update: cascade, delete: restrict]
+Ref "fk_leaves_employee": "employees"."employee_id" < "leaves"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_notifications_event": "operational_events"."event_id" < "notifications"."event_id" [update: cascade, delete: cascade]
+Ref "fk_notifications_target_employee": "employees"."employee_id" < "notifications"."target_employee_id" [update: cascade, delete: cascade]
+Ref "fk_operational_events_actor_user": "users"."user_id" < "operational_events"."actor_user_id" [update: cascade, delete: set null]
+Ref "fk_overtime_requests_employee": "employees"."employee_id" < "overtime_requests"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_overtime_requests_user": "users"."user_id" < "overtime_requests"."approved_by_user_id" [update: cascade, delete: set null]
+Ref "fk_payroll_deductions_deduction": "deductions"."deduction_id" < "payroll_deductions"."deduction_id" [update: cascade, delete: restrict]
+Ref "fk_payroll_deductions_run_detail": "payroll_run_details"."run_detail_id" < "payroll_deductions"."run_detail_id" [update: cascade, delete: cascade]
+Ref "fk_payroll_history_employee": "employees"."employee_id" < "payroll_history"."employee_id" [update: cascade, delete: restrict]
+Ref "fk_payroll_history_run_detail": "payroll_run_details"."run_detail_id" < "payroll_history"."run_detail_id" [update: cascade, delete: set null]
+Ref "fk_payroll_run_details_employee": "employees"."employee_id" < "payroll_run_details"."employee_id" [update: cascade, delete: restrict]
+Ref "fk_payroll_run_details_run": "payroll_runs"."run_id" < "payroll_run_details"."run_id" [update: cascade, delete: cascade]
+Ref "fk_payroll_runs_period": "payroll_periods"."period_id" < "payroll_runs"."period_id" [update: cascade, delete: restrict]
+Ref "fk_payroll_runs_user": "users"."user_id" < "payroll_runs"."processed_by_user_id" [update: cascade, delete: set null]
+Ref "fk_payslips_employee": "employees"."employee_id" < "payslips"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_payslips_run_detail": "payroll_run_details"."run_detail_id" < "payslips"."run_detail_id" [update: cascade, delete: cascade]
+Ref "fk_role_permissions_permission": "permissions"."permission_id" < "role_permissions"."permission_id" [update: cascade, delete: cascade]
+Ref "fk_role_permissions_role": "roles"."role_id" < "role_permissions"."role_id" [update: cascade, delete: cascade]
+Ref "fk_schedule_windows_created_by": "users"."user_id" < "schedule_windows"."created_by_user_id" [update: cascade, delete: set null]
+Ref "fk_schedule_windows_department": "departments"."department_id" < "schedule_windows"."department_id" [update: cascade, delete: set null]
+Ref "fk_schedule_windows_finalized_by": "users"."user_id" < "schedule_windows"."finalized_by_user_id" [update: cascade, delete: set null]
+Ref "fk_user_roles_role": "roles"."role_id" < "user_roles"."role_id" [update: cascade, delete: cascade]
+Ref "fk_user_roles_user": "users"."user_id" < "user_roles"."user_id" [update: cascade, delete: cascade]
+Ref "fk_users_employee": "employees"."employee_id" < "users"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_wpr_employee": "employees"."employee_id" < "workforce_payroll_readiness"."employee_id" [update: cascade, delete: cascade]
+Ref "fk_wpr_finance_validated_by_user": "users"."user_id" < "workforce_payroll_readiness"."finance_validated_by_user_id" [update: cascade, delete: set null]
+Ref "fk_wpr_hr_validated_by_user": "users"."user_id" < "workforce_payroll_readiness"."hr_validated_by_user_id" [update: cascade, delete: set null]
+Ref "fk_wpr_period": "payroll_periods"."period_id" < "workforce_payroll_readiness"."payroll_period_id" [update: cascade, delete: cascade]
+Ref "fk_wpr_returned_by_user": "users"."user_id" < "workforce_payroll_readiness"."returned_by_user_id" [update: cascade, delete: set null]
+Ref "fk_wpr_supervisor_cleared_by_user": "users"."user_id" < "workforce_payroll_readiness"."supervisor_cleared_by_user_id" [update: cascade, delete: set null]
+Ref "fk_wpr_supervisor_employee": "employees"."employee_id" < "workforce_payroll_readiness"."supervisor_employee_id" [update: cascade, delete: set null]
+
+
+DiagramView Default {
+  *
+}
+
+
+DiagramView hr_core {
+  TableGroups {
+    auth_rbac
+  }
+}
+
+
+DiagramView auth_rbac {
+  TableGroups {
+    auth_rbac
+  }
+}
+
+
+DiagramView scheduling_attendance {
+  TableGroups {
+    scheduling_attendance
+  }
+}
+
+
+DiagramView leave_overtime {
+  TableGroups {
+    leave_overtime
+  }
+}
+
+
+DiagramView payroll {
+  TableGroups {
+    payroll
+  }
+}
+
+
+DiagramView workflow_ops {
+  TableGroups {
+    workflow_ops
+  }
+}
+
+
+DiagramView audit_compliance {
+  TableGroups {
+    audit_compliance
+  }
+}
